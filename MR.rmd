@@ -1,0 +1,157 @@
+---
+title: "Data Science Capstone Milestone Report"
+author: "Alia Amin"
+date: "Sunday, July 19, 2015"
+output: html_document
+---
+
+## Synopsis
+
+In this report, we summarize the preliminary results of the capstone project.
+This report explains 1) where the dataset is obtained; 2) how the data is cleaned and processed, 3) basic summary statistics of the datasets and findings and 4) future work.
+
+## Data Processing
+### Step 1: Download Dataset
+
+The data used in this project is from a corpus called HC Corpora <www.corpora.heliohost.org>. See the readme file at <http://www.corpora.heliohost.org/aboutcorpus.html> for details on the corpora available. The files have been language filtered but may still contain some foreign text. The datasets is available in 4 different languages: English, German, Russian and Finish. For each language, there are 3 types of sources available: twitter dataset, Blog dataset and news dataset. The dataset can be downloaded from: 
+<https://d396qusza40orc.cloudfront.net/dsscapstone/dataset/Coursera-SwiftKey.zip>. 
+**Throughout this project, we will use the English language dataset only.** 
+
+
+```{r echo=FALSE, warning=FALSE,  message=FALSE}
+#load libraries
+require(stringi)
+require("Rgraphviz")
+library(wordcloud)
+library(tau)
+library(tm)
+library(RWeka)
+library(rJava)
+library(plyr)
+library(slam)
+
+library(RXKCD)
+library(RColorBrewer)
+
+```
+
+### Step 2. Dataset clean up
+
+To make processing these very large datasets easier, we broke the clean up process into 7 parts: blog, news, and 5 twitter files. We cleaned up the dataset for each sources (twitter (5 parts), blog, news) separately, with the intention of merging them together only after the datasets are processed. The cleaned up each dataset is an iterative process using the TM library in the following order:
+
+* convert all characters to lower character
+* convert shortened words (apostroph's words) to original words (reference: http://www.textfixer.com/resources/common-english-words.php)
+* remove the remaining apostroph characters
+* remove punctuations
+* remove numbers
+* remove urls
+* remove non alphanumeric characters
+* remove whitespaces
+
+After the clean up process above, the all cleaned dataset is stored in RDS format.
+Due to the extensiveness of these operation the cleanup process is done separately from this report. For more detail on the codes used in the dataset clean up preprocessing, please refer to <http://github.com/aliaamin/sw>.
+
+### 2.2. Step 3. Dataset Summary
+```{r warning=FALSE,  message=FALSE}
+#load step 1. original dataset
+tfilename <- "./Coursera-SwiftKey/final/en_US/en_US.twitter.txt"
+nfilename <- "./Coursera-SwiftKey/final/en_US/en_US.news.txt"
+bfilename <- "./Coursera-SwiftKey/final/en_US/en_US.blogs.txt"
+
+# load step 2. cleanned dataset
+t1rdsfilename <- "./MilestoneReport/data/en_US.cleaned_twitter1.RDS"
+t2rdsfilename <- "./MilestoneReport/data/en_US.cleaned_twitter2.RDS"
+t3rdsfilename <- "./MilestoneReport/data/en_US.cleaned_twitter3.RDS"
+t4rdsfilename <- "./MilestoneReport/data/en_US.cleaned_twitter4.RDS"
+t5rdsfilename <- "./MilestoneReport/data/en_US.cleaned_twitter5.RDS"
+blogrdsfilename <- "./MilestoneReport/data/en_US.cleaned_blog.RDS"
+newsrdsfilename <- "./MilestoneReport/data/en_US.cleaned_news.RDS"
+```
+
+
+```{r echo=FALSE, warning=FALSE,  message=FALSE}
+tweets<-as.matrix(readLines(tfilename,-1,skipNul = TRUE))
+tweets <- iconv(tweets, "latin1", "ASCII", sub="")
+
+blogs<-as.matrix(readLines(bfilename,-1,skipNul = TRUE))
+blogs <- iconv(blogs, "latin1", "ASCII", sub="")
+
+news<-as.matrix(readLines(nfilename,-1,skipNul = TRUE))
+news <- iconv(news, "latin1", "ASCII", sub="")
+
+originaldataset <- rbind(c("en_US.twitter.txt",file.info(tfilename)$size,length(tweets),"30341028"))
+originaldataset <- rbind(originaldataset, c("en_US.blogs.txt",file.info(bfilename)$size,length(blogs),"37272578"))
+originaldataset <- rbind(originaldataset, c("en_US.news.txt",file.info(nfilename)$size,length(news),"34309642"))
+colnames(originaldataset) <- c("filename", "file size", "#lines", "#words")
+```
+
+```{r  warning=FALSE,  message=FALSE}
+# Summary of original datasets, step 1 load dataset
+print(originaldataset)
+
+```
+```{r echo=FALSE, warning=FALSE,  message=FALSE}
+
+cleanneddataset <- rbind(c("en_US.cleaned_twitter1.RDS",file.info(t1rdsfilename)$size))
+cleanneddataset <- rbind(cleanneddataset,c("en_US.cleaned_twitter2.RDS",file.info(t2rdsfilename)$size))
+cleanneddataset <- rbind(cleanneddataset,c("en_US.cleaned_twitter3.RDS",file.info(t3rdsfilename)$size))
+cleanneddataset <- rbind(cleanneddataset,c("en_US.cleaned_twitter4.RDS",file.info(t4rdsfilename)$size))
+cleanneddataset <- rbind(cleanneddataset,c("en_US.cleaned_twitter5.RDS",file.info(t5rdsfilename)$size))
+cleanneddataset <- rbind(cleanneddataset,c("en_US.cleaned_blog.RDS",file.info(blogrdsfilename)$size))
+cleanneddataset <- rbind(cleanneddataset,c("en_US.cleaned_news.RDS",file.info(newsrdsfilename)$size))
+colnames(cleanneddataset) <- c("filename", "file size")
+
+```
+```{r  warning=FALSE,  message=FALSE}
+# After step 2. dataset clean up
+print(cleanneddataset)
+```
+
+### Step 4. Exploratory Analysis 
+
+We explored what are the most used words identified in the dataset, and display the 50 most frequent words in a wordcloud, a histogram chart and a table.
+We found that the most frequently occured words are stop words.
+
+```{r warning=FALSE,  message=FALSE}
+
+UnigramTokenizer <- function(x) NGramTokenizer(x, Weka_control(min = 1, max = 1))
+
+#files <- c(t1rdsfilename, t2rdsfilename, t3rdsfilename, t4rdsfilename, t5rdsfilename, blogrdsfilename, newsrdsfilename)
+
+files <- c(t5rdsfilename, newsrdsfilename)
+tdm_total <- 0
+
+for (i in 1:length(files)) {
+
+cleanedCorpus <- readRDS(files[i])
+tdm_a <- TermDocumentMatrix(cleanedCorpus, control = list(tokenize = UnigramTokenizer))
+cleanedCorpus <- 0
+tdm_total <- c(tdm_a)
+tdm_a <- 0
+                
+}
+
+# counting the frequency of each word
+tdm1 <- rollup(tdm_total, 2, na.rm=TRUE, FUN = sum)
+frequency <- slam::row_sums(tdm1, na.rm = T)
+frequency <- sort(frequency, decreasing=TRUE)
+words <- names(frequency)
+
+pal <- brewer.pal(9, "BuGn")
+pal <- pal[-(1:7)]
+wordcloud(words[1:50], frequency[1:50], scale=c(8,.9), random.order=T, rot.per=.15, colors=pal, vfont=c("sans serif","plain"))
+
+barplot(frequency[1:10], main = "Words with highest frequency", xlab = "Words", ylab = "Frequency")
+
+#A list of 50 most frequent words
+print(rbind(frequency[1:50]))
+
+```
+
+
+### Step 5. Future work 
+There are 2 further steps that we will do to improve the model:
+
+1) The next step for this research is to reduce the size of the model without compromising quality. One way to achieve this is to remove the longtail words that in total occur only once. This word is most likely a typo. Through manual examination of the cleanned data, we found this case occurs a lot in blog and twitter datasets where the language and typing style are more loose.
+
+2) work on the 2-gram and 3-gram model that will be use for prediction.
