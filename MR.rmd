@@ -116,9 +116,8 @@ We found that the most frequently occured words are stop words.
 
 UnigramTokenizer <- function(x) NGramTokenizer(x, Weka_control(min = 1, max = 1))
 
-#files <- c(t1rdsfilename, t2rdsfilename, t3rdsfilename, t4rdsfilename, t5rdsfilename, blogrdsfilename, newsrdsfilename)
+files <- c(t1rdsfilename, t2rdsfilename, t3rdsfilename, t4rdsfilename, t5rdsfilename, blogrdsfilename, newsrdsfilename)
 
-files <- c(t5rdsfilename, newsrdsfilename)
 tdm_total <- 0
 
 for (i in 1:length(files)) {
@@ -147,7 +146,6 @@ barplot(frequency[1:10], main = "Words with highest frequency", xlab = "Words", 
 print(rbind(frequency[1:50]))
 
 ```
-
 
 ### Step 5. Future work 
 There are 2 further steps that we will do to improve the model:

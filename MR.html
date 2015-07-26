@@ -129,9 +129,8 @@ print(cleanneddataset)</code></pre>
 <p>We explored what are the most used words identified in the dataset, and display the 50 most frequent words in a wordcloud, a histogram chart and a table. We found that the most frequently occured words are stop words.</p>
 <pre class="r"><code>UnigramTokenizer &lt;- function(x) NGramTokenizer(x, Weka_control(min = 1, max = 1))
 
-#files &lt;- c(t1rdsfilename, t2rdsfilename, t3rdsfilename, t4rdsfilename, t5rdsfilename, blogrdsfilename, newsrdsfilename)
+files &lt;- c(t1rdsfilename, t2rdsfilename, t3rdsfilename, t4rdsfilename, t5rdsfilename, blogrdsfilename, newsrdsfilename)
 
-files &lt;- c(t5rdsfilename, newsrdsfilename)
 tdm_total &lt;- 0
 
 for (i in 1:length(files)) {
